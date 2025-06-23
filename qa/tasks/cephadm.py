@@ -1135,7 +1135,7 @@ def ceph_osds(ctx, config):
                 short_dev = dev
             log.info('Deploying %s on %s with %s...' % (
                 osd, remote.shortname, dev))
-            remote.run(
+            p = remote.run(
                 args=[
                     'sudo',
                     ctx.cephadm,
@@ -1147,6 +1147,7 @@ def ceph_osds(ctx, config):
                     '--', 'lvm', 'zap', dev
                 ]
             )
+            log.debug(f"Deploying {osd_id} on {remote} returns (stdout : {p.stdout.getvalue()}) - (stderr: {p.stderr.getvalue()})")
             add_osd_args = ['ceph', 'orch', 'daemon', 'add', 'osd',
                             remote.shortname + ':' + short_dev]
             osd_method = config.get('osd_method')
