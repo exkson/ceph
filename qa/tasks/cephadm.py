@@ -1147,7 +1147,7 @@ def ceph_osds(ctx, config):
                     '--', 'lvm', 'zap', dev
                 ]
             )
-            log.debug(f"Deploying {osd_id} on {remote} returns (stdout : {p.stdout.getvalue()}) - (stderr: {p.stderr.getvalue()})")
+            log.debug(f"Run ceph-volume for {osd_id} on {remote} returns (stdout : {p.stdout.getvalue()}) - (stderr: {p.stderr.getvalue()})")
             add_osd_args = ['ceph', 'orch', 'daemon', 'add', 'osd',
                             remote.shortname + ':' + short_dev]
             osd_method = config.get('osd_method')
@@ -1155,11 +1155,13 @@ def ceph_osds(ctx, config):
                 add_osd_args.append(osd_method)
             if use_skip_validation:
                 try:
-                    _shell(ctx, cluster_name, remote, add_osd_args + ['--skip-validation'])
+                    p = _shell(ctx, cluster_name, remote, add_osd_args + ['--skip-validation'])
+                    log.debug(f"Run ceph shell for {osd_id} on {remote} returns (stdout {p.stdout.getvalue()}) - (stderr: {p.stderr.getvalue()})")
                 except Exception as e:
                     log.warning(f"--skip-validation falied with error {e}. Retrying without it")
                     use_skip_validation = False
-                    _shell(ctx, cluster_name, remote, add_osd_args)
+                    p = _shell(ctx, cluster_name, remote, add_osd_args)
+                    log.debug(f"Run ceph shell for {osd_id} on {remote} returns (stdout {p.stdout.getvalue()}) - (stderr: {p.stderr.getvalue()})")
             else:
                 _shell(ctx, cluster_name, remote, add_osd_args)
 
