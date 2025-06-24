@@ -127,9 +127,9 @@ def _shell(ctx, cluster_name, remote, args, extra_cephadm_args=[], **kwargs):
         ' '.join(args),
     ))
     if p.stdout:
-        log.debug('Command output: %s' % p.stdout.getvalue().decode())
+        log.debug('Command output: %s' % p.stdout.getvalue())
     elif p.stderr:
-        log.debug('Command error output: %s' % p.stderr.getvalue().decode())
+        log.debug('Command error output: %s' % p.stderr.getvalue())
     else:
         log.debug('Command did not produce any output')
     return p
