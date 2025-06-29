@@ -242,6 +242,7 @@ def download_cephadm(ctx, config, ref):
     try:
         yield
     finally:
+        return # TODO: remove this when debug session is done
         _rm_cluster(ctx, cluster_name)
         if config.get('cephadm_mode') == 'root':
             _rm_cephadm(ctx)
@@ -895,6 +896,7 @@ def ceph_bootstrap(ctx, config):
         yield
 
     finally:
+        return # TODO: remove this when debug session is done
         log.info('Disabling cephadm mgr module')
         _shell(
             ctx,
