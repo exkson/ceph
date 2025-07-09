@@ -882,7 +882,7 @@ def ceph_bootstrap(ctx, config):
         yield
 
     finally:
-        return
+        time.sleep(100000)
         log.info('Disabling cephadm mgr module')
         _shell(
             ctx,
