@@ -882,7 +882,6 @@ def ceph_bootstrap(ctx, config):
         yield
 
     finally:
-        time.sleep(100000)
         log.info('Disabling cephadm mgr module')
         _shell(
             ctx,
@@ -2280,6 +2279,14 @@ def deploy_samba_ad_dc(ctx, config):
         setattr(ctx, 'samba_ad_dc_ip', None)
         setattr(ctx, 'samba_client_container_cmd', None)
 
+@contextlib.contextmanager
+def sleep_before_cluster_teardown(ctx, config):
+    seconds = 10000
+    log.info("Sleep for %d will be scheduled before cluster teardown", seconds)
+    yield
+    log.info("Sleeping for %d seconds before cluster teardown", seconds)
+    time.sleep(seconds)
+
 
 @contextlib.contextmanager
 def task(ctx, config):
@@ -2398,6 +2405,7 @@ def task(ctx, config):
             lambda: create_rbd_pool(ctx=ctx, config=config),
             lambda: conf_epoch(ctx=ctx, config=config),
             lambda: watchdog_setup(ctx=ctx, config=config),
+            lambda: sleep_before_cluster_teardown(ctx=ctx, config=config),
     ):
         try:
             if config.get('wait-for-healthy', True):
