@@ -242,9 +242,14 @@ def _udevadm_info(device):
 def lsblk(device, columns=None, abspath=False):
     result = []
     if not os.path.isdir(device):
-        result = lsblk_all(device=device,
+        try:
+            result = lsblk_all(device=device,
                            columns=columns,
                            abspath=abspath)
+        except RuntimeError as e:
+            msg : str = e.args[0]
+            if 'not a block device' in msg and device.startswith('/dev/loop'):
+                return {}
     if not result:
         logger.debug(f"{device} not found is lsblk report")
         return {}
