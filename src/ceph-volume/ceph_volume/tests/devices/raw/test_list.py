@@ -1,8 +1,11 @@
+import os
+
 # type: ignore
 import pytest
 from .data_list import ceph_bluestore_tool_show_label_output
 from unittest.mock import patch, Mock
 from ceph_volume.devices import raw
+from ceph_volume.devices.raw import list as list_command
 
 # Sample lsblk output is below that overviews the test scenario. (--json output for reader clarity)
 #  - sda and all its children are used for the OS
@@ -176,3 +179,12 @@ class TestList(object):
         result = raw.list.List([]).generate()
         assert len(result) == 2
         assert {'sdb-uuid', 'sde1-uuid'} == set(result.keys())
+
+    @patch('ceph_volume.devices.raw.list.disk.lsblk_all')
+    def test_raw_list_exclude_unmounted_loop_devices(self, lsblk_all_mock):
+        os.environ['CEPH_VOLUME_ALLOW_LOOP_DEVICES'] = 'true'
+        lsblk_all_mock.return_value = [
+            {"NAME": "/dev/loop0", "KNAME": "/dev/loop0", "PKNAME": "", "TYPE": "loop"},
+            {"NAME": "/dev/sda", "KNAME": "/dev/sda", "PKNAME": "", "TYPE": "disk"},
+        ]
+        cmd = list_command.List()
