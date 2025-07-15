@@ -213,13 +213,11 @@ class TestList(object):
         patched_bluestore_label.side_effect = _has_bluestore_label_side_effect
         patched_get_devices.side_effect = _devices_side_effect
 
-        os.environ["CEPH_VOLUME_ALLOW_LOOP_DEVICES"] = "false"
         with patch(
             "ceph_volume.devices.raw.list.List.exclude_invalid_loop_devices"
         ) as mock:
             list_command.List([]).generate()
             mock.assert_not_called()
-        del os.environ["CEPH_VOLUME_ALLOW_LOOP_DEVICES"]
 
     @patch("ceph_volume.devices.raw.list.List.exclude_lvm_osd_devices", Mock())
     @patch("ceph_volume.util.device.disk.get_devices")
