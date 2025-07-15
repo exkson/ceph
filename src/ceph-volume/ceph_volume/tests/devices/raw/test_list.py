@@ -1,8 +1,11 @@
+import os
+
 # type: ignore
 import pytest
 from .data_list import ceph_bluestore_tool_show_label_output
 from unittest.mock import patch, Mock
 from ceph_volume.devices import raw
+from ceph_volume.devices.raw import list as list_command
 
 # Sample lsblk output is below that overviews the test scenario. (--json output for reader clarity)
 #  - sda and all its children are used for the OS
@@ -176,3 +179,67 @@ class TestList(object):
         result = raw.list.List([]).generate()
         assert len(result) == 2
         assert {'sdb-uuid', 'sde1-uuid'} == set(result.keys())
+
+    @patch('ceph_volume.devices.raw.list.os.path.exists')
+    def test_raw_list_exclude_unmounted_loop_devices(self, path_exists_patch):
+        def path_exists_side_effect(path):
+            return path in ["/dev/sda"]
+        path_exists_patch.side_effect = path_exists_side_effect
+
+        devices = [
+            {"NAME": "/dev/loop0", "KNAME": "/dev/loop0", "PKNAME": "", "TYPE": "loop"},
+            {"NAME": "/dev/sda", "KNAME": "/dev/sda", "PKNAME": "", "TYPE": "disk"},
+        ]
+        cmd = list_command.List([])
+
+        assert cmd.exclude_invalid_loop_devices(devices) == [
+            {"NAME": "/dev/sda", "KNAME": "/dev/sda", "PKNAME": "", "TYPE": "disk"}
+        ]
+
+    @patch("ceph_volume.devices.raw.list.List.exclude_lvm_osd_devices", Mock())
+    @patch("ceph_volume.util.device.disk.get_devices")
+    @patch("ceph_volume.util.disk.has_bluestore_label")
+    @patch("ceph_volume.process.call")
+    @patch("ceph_volume.util.disk.lsblk_all")
+    def test_exclude_invalid_loop_devices_is_not_called_without_flag(
+        self,
+        patched_disk_lsblk,
+        patched_call,
+        patched_bluestore_label,
+        patched_get_devices,
+    ):
+        patched_disk_lsblk.side_effect = _lsblk_all_devices
+        patched_call.side_effect = _process_call_side_effect
+        patched_bluestore_label.side_effect = _has_bluestore_label_side_effect
+        patched_get_devices.side_effect = _devices_side_effect
+
+        with patch(
+            "ceph_volume.devices.raw.list.List.exclude_invalid_loop_devices"
+        ) as mock:
+            list_command.List([]).generate()
+            mock.assert_not_called()
+
+    @patch("ceph_volume.devices.raw.list.List.exclude_lvm_osd_devices", Mock())
+    @patch("ceph_volume.util.device.disk.get_devices")
+    @patch("ceph_volume.util.disk.has_bluestore_label")
+    @patch("ceph_volume.process.call")
+    @patch("ceph_volume.util.disk.lsblk_all")
+    def test_exclude_invalid_loop_devices_is_called_with_flag(
+        self,
+        patched_disk_lsblk,
+        patched_call,
+        patched_bluestore_label,
+        patched_get_devices,
+    ):
+        patched_disk_lsblk.side_effect = _lsblk_all_devices
+        patched_call.side_effect = _process_call_side_effect
+        patched_bluestore_label.side_effect = _has_bluestore_label_side_effect
+        patched_get_devices.side_effect = _devices_side_effect
+
+        os.environ["CEPH_VOLUME_ALLOW_LOOP_DEVICES"] = "true"
+        with patch(
+            "ceph_volume.devices.raw.list.List.exclude_invalid_loop_devices"
+        ) as mock:
+            list_command.List([]).generate()
+            mock.assert_called_once()
+        del os.environ["CEPH_VOLUME_ALLOW_LOOP_DEVICES"]
