@@ -101,13 +101,13 @@ class List(object):
             # the parent disk has a bluestore header, but children may be the most appropriate
             # devices to return if the parent disk does not have a bluestore header.
             self.info_devices = disk.lsblk_all(abspath=True)
-            logger.debug('lsblk returned: {}'.format(self.info_devices))
+            logger.info('lsblk returned: {}'.format(self.info_devices))
             if allow_loop_devices():
-                logger.debug('allow_loop_devices is set, so we will filter out invalid loop devices')
+                logger.info('allow_loop_devices is set, so we will filter out invalid loop devices')
                 self.info_devices = self.exclude_invalid_loop_devices(self.info_devices)
-                logger.debug('after excluding invalid loop devices, lsblk returned: {}'.format(self.info_devices))
+                logger.info('after excluding invalid loop devices, lsblk returned: {}'.format(self.info_devices))
             else:
-                logger.debug('allow_loop_devices is not set')
+                logger.info('allow_loop_devices is not set')
             # Linux kernels built with CONFIG_ATARI_PARTITION enabled can falsely interpret
             # bluestore's on-disk format as an Atari partition table. These false Atari partitions
             # can be interpreted as real OSDs if a bluestore OSD was previously created on the false
