@@ -108,7 +108,7 @@ def _role_to_remote(rctx, role):
 
 def _shell(ctx, cluster_name, remote, args, extra_cephadm_args=[], **kwargs):
     teuthology.get_testdir(ctx)
-    return remote.run(
+    p = remote.run(
         args=[
             'sudo',
             ctx.cephadm,
@@ -122,6 +122,19 @@ def _shell(ctx, cluster_name, remote, args, extra_cephadm_args=[], **kwargs):
             ] + args,
         **kwargs
     )
+    log.debug('Running command on remote %s: %s' % (
+        remote.shortname,
+        ' '.join(args),
+    ))
+    if p.stdout:
+        log.debug('Command output: %s' % p.stdout.getvalue())
+    elif p.stderr:
+        log.debug('Command error output: %s' % p.stderr.getvalue())
+    else:
+        log.debug('Command did not produce any output')
+    return p
+
+
 
 
 def _cephadm_remotes(ctx, log_excluded=False):
@@ -229,6 +242,7 @@ def download_cephadm(ctx, config, ref):
     try:
         yield
     finally:
+        return # TODO: remove this when debug session is done
         _rm_cluster(ctx, cluster_name)
         if config.get('cephadm_mode') == 'root':
             _rm_cephadm(ctx)
@@ -883,6 +897,7 @@ def ceph_bootstrap(ctx, config):
         yield
 
     finally:
+        return # TODO: remove this when debug session is done
         log.info('Disabling cephadm mgr module')
         _shell(
             ctx,
@@ -1136,7 +1151,7 @@ def ceph_osds(ctx, config):
                 short_dev = dev
             log.info('Deploying %s on %s with %s...' % (
                 osd, remote.shortname, dev))
-            remote.run(
+            p = remote.run(
                 args=[
                     'sudo',
                     ctx.cephadm,
@@ -1148,6 +1163,7 @@ def ceph_osds(ctx, config):
                     '--', 'lvm', 'zap', dev
                 ]
             )
+            log.debug(f"Run ceph-volume for {osd_id} on {remote}")
             add_osd_args = ['ceph', 'orch', 'daemon', 'add', 'osd',
                             remote.shortname + ':' + short_dev]
             osd_method = config.get('osd_method')
@@ -1155,11 +1171,11 @@ def ceph_osds(ctx, config):
                 add_osd_args.append(osd_method)
             if use_skip_validation:
                 try:
-                    _shell(ctx, cluster_name, remote, add_osd_args + ['--skip-validation'])
+                    p = _shell(ctx, cluster_name, remote, add_osd_args + ['--skip-validation'])
                 except Exception as e:
                     log.warning(f"--skip-validation falied with error {e}. Retrying without it")
                     use_skip_validation = False
-                    _shell(ctx, cluster_name, remote, add_osd_args)
+                    p = _shell(ctx, cluster_name, remote, add_osd_args)
             else:
                 _shell(ctx, cluster_name, remote, add_osd_args)
 
@@ -1173,6 +1189,7 @@ def ceph_osds(ctx, config):
             )
             cur += 1
 
+        log.debug(f"Cursor value is {cur}")
         if cur == 0:
             osd_cmd = ['ceph', 'orch', 'apply', 'osd', '--all-available-devices']
             if raw:
@@ -1184,13 +1201,13 @@ def ceph_osds(ctx, config):
         else:
             # expect the number of OSDs we created
             num_osds = cur
-
         log.info(f'Waiting for {num_osds} OSDs to come up...')
         with contextutil.safe_while(sleep=1, tries=120) as proceed:
             while proceed():
                 p = _shell(ctx, cluster_name, ctx.ceph[cluster_name].bootstrap_remote,
                            ['ceph', 'osd', 'stat', '-f', 'json'], stdout=StringIO())
                 j = json.loads(p.stdout.getvalue())
+                log.debug(f"'ceph osd stat -f json' returns {j}")
                 if int(j.get('num_up_osds', 0)) == num_osds:
                     break;
 
