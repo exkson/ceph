@@ -1,3 +1,4 @@
+import os
 from __future__ import print_function
 import argparse
 import json
@@ -80,6 +81,14 @@ class List(object):
             filtered_devices_to_scan = pool.map(self.filter_lvm_osd_devices, self.devices_to_scan)
             self.devices_to_scan = [device for device in filtered_devices_to_scan if device is not None]
 
+    def exclude_invalid_devices(self, devices: _List[Dict[str, str]]) -> _List[Dict[str, str]]:
+        return [
+            dev
+            for dev in devices
+            if (dev_name := dev["NAME"]) and os.path.exists(dev_name)
+        ]
+
+
     def filter_lvm_osd_devices(self, device: str) -> Optional[str]:
         d = Device(device)
         return d.path if not d.ceph_device_lvm else None
@@ -91,7 +100,7 @@ class List(object):
             # parents. Parent disks with child partitions may be the appropriate device to return if
             # the parent disk has a bluestore header, but children may be the most appropriate
             # devices to return if the parent disk does not have a bluestore header.
-            self.info_devices = disk.lsblk_all(abspath=True)
+            self.info_devices = self.exclude_invalid_devices(disk.lsblk_all(abspath=True))
             # Linux kernels built with CONFIG_ATARI_PARTITION enabled can falsely interpret
             # bluestore's on-disk format as an Atari partition table. These false Atari partitions
             # can be interpreted as real OSDs if a bluestore OSD was previously created on the false
